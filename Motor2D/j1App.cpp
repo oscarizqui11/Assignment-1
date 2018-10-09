@@ -12,7 +12,8 @@
 #include "j1Map.h"
 #include "j1App.h"
 
-// Constructor
+// Constructor ------------------------------------------
+
 j1App::j1App(int argc, char* args[]) : argc(argc), args(args)
 {
 	frames = 0;
@@ -39,7 +40,8 @@ j1App::j1App(int argc, char* args[]) : argc(argc), args(args)
 	AddModule(render);
 }
 
-// Destructor
+// Destructor ------------------------------------------
+
 j1App::~j1App()
 {
 	// release modules
@@ -54,13 +56,16 @@ j1App::~j1App()
 	modules.clear();
 }
 
+// ------------------------------------------
+
 void j1App::AddModule(j1Module* module)
 {
 	module->Init();
 	modules.add(module);
 }
 
-// Called before render is available
+// Called before render is available ------------------------------------------
+
 bool j1App::Awake()
 {
 	pugi::xml_document	config_file;
@@ -95,7 +100,8 @@ bool j1App::Awake()
 	return ret;
 }
 
-// Called before the first frame
+// Called before the first frame ------------------------------------------
+
 bool j1App::Start()
 {
 	bool ret = true;
@@ -111,7 +117,8 @@ bool j1App::Start()
 	return ret;
 }
 
-// Called each loop iteration
+// Called each loop iteration ------------------------------------------
+
 bool j1App::Update()
 {
 	bool ret = true;
@@ -134,6 +141,7 @@ bool j1App::Update()
 }
 
 // ---------------------------------------------
+
 pugi::xml_node j1App::LoadConfig(pugi::xml_document& config_file) const
 {
 	pugi::xml_node ret;
@@ -149,11 +157,13 @@ pugi::xml_node j1App::LoadConfig(pugi::xml_document& config_file) const
 }
 
 // ---------------------------------------------
+
 void j1App::PrepareUpdate()
 {
 }
 
 // ---------------------------------------------
+
 void j1App::FinishUpdate()
 {
 	if(want_to_save == true)
@@ -163,7 +173,8 @@ void j1App::FinishUpdate()
 		LoadGameNow();
 }
 
-// Call modules before each loop iteration
+// Call modules before each loop iteration ------------------------------------------
+
 bool j1App::PreUpdate()
 {
 	bool ret = true;
@@ -185,7 +196,8 @@ bool j1App::PreUpdate()
 	return ret;
 }
 
-// Call modules on each loop iteration
+// Call modules on each loop iteration ------------------------------------------
+
 bool j1App::DoUpdate()
 {
 	bool ret = true;
@@ -207,7 +219,8 @@ bool j1App::DoUpdate()
 	return ret;
 }
 
-// Call modules after each loop iteration
+// Call modules after each loop iteration ------------------------------------------
+
 bool j1App::PostUpdate()
 {
 	bool ret = true;
@@ -228,7 +241,8 @@ bool j1App::PostUpdate()
 	return ret;
 }
 
-// Called before quitting
+// Called before quitting ------------------------------------------
+
 bool j1App::CleanUp()
 {
 	bool ret = true;
@@ -245,12 +259,14 @@ bool j1App::CleanUp()
 }
 
 // ---------------------------------------
+
 int j1App::GetArgc() const
 {
 	return argc;
 }
 
 // ---------------------------------------
+
 const char* j1App::GetArgv(int index) const
 {
 	if(index < argc)
@@ -260,18 +276,22 @@ const char* j1App::GetArgv(int index) const
 }
 
 // ---------------------------------------
+
 const char* j1App::GetTitle() const
 {
 	return title.GetString();
 }
 
 // ---------------------------------------
+
 const char* j1App::GetOrganization() const
 {
 	return organization.GetString();
 }
 
-// Load / Save
+// Load / Save ------------------------------------------
+// Need to improve
+
 void j1App::LoadGame()
 {
 	// we should be checking if that file actually exist
@@ -280,6 +300,7 @@ void j1App::LoadGame()
 }
 
 // ---------------------------------------
+
 void j1App::SaveGame() const
 {
 	// we should be checking if that file actually exist
@@ -289,77 +310,84 @@ void j1App::SaveGame() const
 }
 
 // ---------------------------------------
+
 void j1App::GetSaveGames(p2List<p2SString>& list_to_fill) const
 {
 	// need to add functionality to file_system module for this to work
 }
 
+// ------------------------------------------
+
 bool j1App::LoadGameNow()
-{
-	bool ret = false;
+{	bool ret = false;
 
-	pugi::xml_document data;
-	pugi::xml_node root;
+	pugi::xml_document memorycard_doc;
+	pugi::xml_node game_state;
 
-	pugi::xml_parse_result result = data.load_file(load_game.GetString());
+	//pugi::xml_parse_result result = data.load_file(load_game.GetString());
+	pugi::xml_parse_result result = memorycard_doc.load_file("save_game.xml");
 
 	if(result != NULL)
 	{
-		LOG("Loading new Game State from %s...", load_game.GetString());
+		//LOG("Loading new Game State from %s...", load_game.GetString());
+		LOG("Loading new Game State from %s...", "save_game.xml");
 
-		root = data.child("game_state");
+		game_state = memorycard_doc.child("game_state");
 
-		p2List_item<j1Module*>* item = modules.start;
+		p2List_item<j1Module*>* module_selected = modules.start;
 		ret = true;
 
-		while(item != NULL && ret == true)
+		while(module_selected != NULL && ret == true)
 		{
-			ret = item->data->Load(root.child(item->data->name.GetString()));
-			item = item->next;
+			ret = module_selected->data->Load(game_state.child(module_selected->data->name.GetString()));
+			module_selected = module_selected->next;
 		}
 
-		data.reset();
+		memorycard_doc.reset();
 		if(ret == true)
 			LOG("...finished loading");
 		else
-			LOG("...loading process interrupted with error on module %s", (item != NULL) ? item->data->name.GetString() : "unknown");
+			LOG("...loading process interrupted with error on module %s", (module_selected != NULL) ? module_selected->data->name.GetString() : "unknown");
 	}
 	else
-		LOG("Could not parse game state xml file %s. pugi error: %s", load_game.GetString(), result.description());
+		LOG("Could not parse game state xml file %s. pugi error: %s", /*load_game.GetString()*/"save_game.xml", result.description());
 
 	want_to_load = false;
+
 	return ret;
 }
+
+// ------------------------------------------
 
 bool j1App::SavegameNow() const
 {
 	bool ret = true;
 
-	LOG("Saving Game State to %s...", save_game.GetString());
+	LOG("Saving Game State to %s...", /*save_game.GetString()*/"save_game.xml");
 
 	// xml object were we will store all data
-	pugi::xml_document data;
-	pugi::xml_node root;
+	pugi::xml_document memorycard_doc;
+	pugi::xml_node game_state;
 	
-	root = data.append_child("game_state");
+	game_state = memorycard_doc.append_child("game_state");
 
-	p2List_item<j1Module*>* item = modules.start;
+	p2List_item<j1Module*>* module_selected = modules.start;
 
-	while(item != NULL && ret == true)
+	while(module_selected != NULL && ret == true)
 	{
-		ret = item->data->Save(root.append_child(item->data->name.GetString()));
-		item = item->next;
+		ret = module_selected->data->Save(game_state.append_child(module_selected->data->name.GetString()));
+		module_selected = module_selected->next;
 	}
 
 	if(ret == true)
 	{
-		data.save_file(save_game.GetString());
+		memorycard_doc.save_file(/*save_game.GetString()*/"save_game.xml");
 		LOG("... finished saving", );
 	}
 	else
-		LOG("Save process halted from an error in module %s", (item != NULL) ? item->data->name.GetString() : "unknown");
+		LOG("Save process halted from an error in module %s", (module_selected != NULL) ? module_selected->data->name.GetString() : "unknown");
 
-	data.reset();
+	memorycard_doc.reset();
 	want_to_save = false;
 	return ret;
 }
