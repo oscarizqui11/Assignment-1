@@ -4,6 +4,7 @@
 #include "j1Render.h"
 #include "j1Textures.h"
 #include "j1Map.h"
+#include "j1Player.h"
 #include <math.h>
 
 j1Map::j1Map() : j1Module(), map_loaded(false)
@@ -42,20 +43,49 @@ void j1Map::Draw()
 	p2List_item<MapLayers*>* map_layer;
 	map_layer = data.maplayers.start;
 	
-	for (int y = 0; y < data.height; y++) {
-		for (int x = 0; x < data.width; x++) {
+	while (map_layer != nullptr)
+	{
+		for (int y = 0; y < data.height; y++) {
+			for (int x = 0; x < data.width; x++) {
 
-			uint tile_texture = map_layer->data->TwoToOneDimension(x, y);
+				uint tile_texture = map_layer->data->TwoToOneDimension(x, y);
 
-			tile_texture = map_layer->data->tilelist[tile_texture];
+				tile_texture = map_layer->data->tilelist[tile_texture];
 
-			if (tile_texture != 0) {
-				SDL_Rect *rect = &texture_layer->data->GetTileRect(tile_texture);
-				iPoint pos = MapToWorld(x, y);
-				App->render->Blit(texture_layer->data->texture, pos.x, pos.y, rect);
+				if (tile_texture != 0) {
+					SDL_Rect *rect = &texture_layer->data->GetTileRect(tile_texture, texture_layer->data);
+					iPoint pos = MapToWorld(x, y);
+					App->render->Blit(texture_layer->data->texture, pos.x, pos.y, rect);
+				}
 			}
 		}
+		map_layer = map_layer->next;
 	}
+
+	if (debug_mode == true)
+	{
+		p2List_item<Collision*>* collision_layer;
+		collision_layer = data.collisions.start;
+
+		while (collision_layer != nullptr)
+		{
+			uint alpha = 80;
+			App->render->DrawQuad(collision_layer->data->GetColliderRect(collision_layer->data), 0, 0, 255, alpha);
+
+			collision_layer = collision_layer->next;
+		}
+	}
+}
+
+//	----------------------------------------------
+
+void j1Map::ChangeDebugMode()
+{
+	if (debug_mode != true)
+		debug_mode = true;
+
+	else
+		debug_mode = false;
 }
 
 //	----------------------------------------------
@@ -72,14 +102,26 @@ iPoint j1Map::MapToWorld(int x, int y) const
 
 //	----------------------------------------------
 
-SDL_Rect TileSet::GetTileRect(int id) const
+SDL_Rect TileSet::GetTileRect(int id, TileSet* texture) const
 {
 	int relative_id = id - firstgid;
 	SDL_Rect rect;
-	rect.w = tile_width;
-	rect.h = tile_height;
+	rect.w = texture->tile_width;
+	rect.h = texture->tile_height;
 	rect.x = margin + ((rect.w + spacing) * (relative_id % num_tiles_width));
 	rect.y = margin + ((rect.h + spacing) * (relative_id / num_tiles_width));
+	return rect;
+}
+
+//	----------------------------------------------
+
+SDL_Rect Collision::GetColliderRect(Collision* collision) const
+{
+	SDL_Rect rect;
+	rect.w = collision->width;
+	rect.h = collision->height;
+	rect.x = collision->x;
+	rect.y = collision->y;
 	return rect;
 }
 
@@ -169,6 +211,20 @@ bool j1Map::Load(const char* file_name)
 		}
 
 		data.maplayers.add(set);
+	}
+
+	// Load colliders info
+	pugi::xml_node collision;
+	for (collision = map_file.child("map").child("objectgroup").child("object"); collision && ret; collision = collision.next_sibling("object"))
+	{
+		Collision* set = new Collision();
+
+		if (ret == true)
+		{
+			ret = LoadColliderData(collision, set);
+		}
+
+		data.collisions.add(set);
 	}
 
 	if(ret == true)
@@ -366,6 +422,30 @@ bool j1Map::LoadSingleLayer(pugi::xml_node& node, MapLayers* layer)
 		}
 
 
+	}
+
+	return ret;
+}
+
+//	----------------------------------------------------
+
+bool j1Map::LoadColliderData(pugi::xml_node& node, Collision* collision)
+{
+	bool ret = true;
+
+	if (collision == NULL)
+	{
+		LOG("Error parsing collision xml file: Cannot find 'collision' tag.");
+		ret = false;
+	}
+	else
+	{
+		collision->object_id = node.attribute("id").as_uint();
+		collision->name.create(node.attribute("name").as_string());
+		collision->x = node.attribute("x").as_int();
+		collision->y = node.attribute("y").as_int();
+		collision->height = node.attribute("height").as_uint();
+		collision->width = node.attribute("width").as_uint();		
 	}
 
 	return ret;

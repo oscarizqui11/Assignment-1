@@ -6,6 +6,20 @@
 #include "p2Point.h"
 #include "j1Module.h"
 
+// Create a struct for the collisions
+struct Collision
+{
+	SDL_Rect GetColliderRect(Collision* collision) const;
+
+	uint				object_id;
+	p2SString			name;
+	uint				x;
+	uint				y;
+	uint				width;
+	uint				height;
+
+};
+
 // Create a struct for the map layer
 struct MapLayers
 {
@@ -21,7 +35,7 @@ struct MapLayers
 struct TileSet
 {
 	// TODO 7: Create a method that receives a tile id and returns it's Rectfind the Rect associated with a specific tile id
-	SDL_Rect GetTileRect(int id) const;
+	SDL_Rect GetTileRect(int id, TileSet* texture) const;
 
 	p2SString			name;
 	int					firstgid;
@@ -57,6 +71,7 @@ struct MapData
 	MapTypes			type;
 	p2List<TileSet*>	tilesets;
 	p2List<MapLayers*>	maplayers;
+	p2List<Collision*>	collisions;
 };
 
 // ----------------------------------------------------
@@ -85,12 +100,15 @@ public:
 	// Translates x,y coordinates from map positions to world positions
 	iPoint MapToWorld(int x, int y) const;
 
+	void ChangeDebugMode();
+
 private:
 
 	bool LoadMapGeneralProperties();
 	bool LoadTilesetDetails(pugi::xml_node& tileset_node, TileSet* set);
 	bool LoadTilesetImage(pugi::xml_node& tileset_node, TileSet* set);
 	bool LoadSingleLayer(pugi::xml_node& node, MapLayers* layer);
+	bool LoadColliderData(pugi::xml_node& node, Collision* collision);
 
 public:
 
@@ -101,6 +119,7 @@ private:
 	pugi::xml_document	map_file;
 	p2SString			folder;
 	bool				map_loaded;
+	bool				debug_mode;
 };
 
 #endif // __j1MAP_H__
